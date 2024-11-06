@@ -18,4 +18,4 @@ vulnerabilities. Evaluation of 615 IoT firmware images uncovers 67 vulnerabiliti
 unknown issues. Our work underscores the urgent need for assessment solutions for IoT firmware.
 
 # Data Set
-We have disclosed all experimental data and code for replication.
+We have made all experimental data and code publicly available for replication.
