@@ -1,0 +1,173 @@
+################################################################################
+Java decompression sample code:
+import java.io.*;
+import java.util.zip.*;
+
+public class Unzip {
+    public static void main(String[] args) {
+        String zipFilePath = "path/to/your/firmware.zip";
+        String destDir = "path/to/your/destination/directory";
+        try {
+            File destDirFile = new File(destDir);
+            if (!destDirFile.exists()) {
+                destDirFile.mkdir();
+            }
+            ZipInputStream zipIn = new ZipInputStream(new FileInputStream(zipFilePath));
+            ZipEntry entry = zipIn.getNextEntry();
+            while (entry != null) {
+                String filePath = destDir + File.separator + entry.getName();
+                if (!entry.isDirectory()) {
+                    extractFile(zipIn, filePath);
+                } else {
+                    File dir = new File(filePath);
+                    dir.mkdir();
+                }
+                zipIn.closeEntry();
+                entry = zipIn.getNextEntry();
+            }
+            zipIn.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void extractFile(ZipInputStream zipIn, String filePath) throws IOException {
+        BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(filePath));
+        byte[] bytesIn = new byte[4096];
+        int read = 0;
+        while ((read = zipIn.read(bytesIn)) != -1) {
+            bos.write(bytesIn, 0, read);
+        }
+        bos.close();
+    }
+}
+
+
+
+################################################################################
+Unpack all bin files and search for busybox and httpd files:
+binwalk -e firmware.bin && cd firmware.bin.extracted && find . -name "*busybox*" -o -name "*httpd*"
+Import ghidra project code:
+1, import the binary file into Ghidra using the following command
+./ghidra_9.2.2_PUBLIC/support/analyzeHeadless /path/to/your/binary -import /path/to/your/project -postscript /path/to/your/script.java
+2，Export all program codes using ghidra
+import java.io.*;
+import ghidra.app.script.GhidraScript;
+import ghidra.framework.Application;
+import ghidra.framework.model.DomainFile;
+import ghidra.program.model.listing.Program;
+
+public class ExportProgram extends GhidraScript {
+    public void run() throws Exception {
+        // Get the current program
+        Program program = getCurrentProgram();
+
+        // Get the domain file for the program
+        DomainFile domainFile = program.getDomainFile();
+
+        // Get the file name and path
+        String fileName = domainFile.getName();
+        String filePath = domainFile.getPathname();
+
+        // Get the export directory
+        File exportDir = new File(Application.getUserTempDirectory(), "export");
+
+        // Create the export directory if it doesn't exist
+        if (!exportDir.exists()) {
+            exportDir.mkdir();
+        }
+
+        // Create the output file
+        File outputFile = new File(exportDir, fileName + ".java");
+
+        // Open the output stream
+        FileOutputStream outputStream = new FileOutputStream(outputFile);
+
+        // Write the program code to the output stream
+        program.saveToXML(outputStream, true);
+
+        // Close the output stream
+        outputStream.close();
+
+        // Print the output file path
+        println("Program code exported to: " + outputFile.getAbsolutePath());
+    }
+}
+
+
+################################################################################
+Writing joern scripts：
+import java.io.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import io.shiftleft.console.JoernConsole;
+import io.shiftleft.console.scripting.ScriptManager;
+import io.shiftleft.console.scripting.ScriptResult;
+import io.shiftleft.console.scripting.ScriptResultType;
+import io.shiftleft.console.scripting.ScriptingConsole;
+import io.shiftleft.console.scripting.ScriptingEngine;
+import io.shiftleft.console.scripting.ScriptingEngineFactory;
+import io.shiftleft.console.scripting.ScriptingLanguage;
+import io.shiftleft.console.scripting.ScriptingLanguageFactory;
+import io.shiftleft.console.scripting.ScriptingLanguageNotFoundException;
+import io.shiftleft.console.scripting.ScriptingLanguageVersion;
+import io.shiftleft.console.scripting.ScriptingLanguageVersionFactory;
+import io.shiftleft.console.scripting.ScriptingLanguageVersionNotFoundException;
+import io.shiftleft.console.scripting.ScriptingRuntimeException;
+import io.shiftleft.console.scripting.ScriptingSecurityException;
+import io.shiftleft.console.scripting.ScriptingTimeoutException;
+import io.shiftleft.console.scripting.ScriptingUnsupportedOperationException;
+import io.shiftleft.console.scripting.ScriptingVariable;
+import io.shiftleft.console.scripting.ScriptingVariableType;
+import io.shiftleft.console.scripting.ScriptingVariableValue;
+import io.shiftleft.console.scripting.ScriptingVariableValueFactory;
+import io.shiftleft.console.scripting.ScriptingVariableValueNotFoundException;
+
+public class JoernScript {
+    public static void main(String[] args) {
+        // Set the path to the project directory
+        String projectPath = "/path/to/your/project";
+
+        // Set the path to the output file
+        String outputPath = "/path/to/your/output/file.json";
+
+        // Initialize the Joern console
+        JoernConsole console = new JoernConsole();
+
+        // Start the console
+        console.start();
+
+        // Import the project
+        console.execute("importCode(\"" + projectPath + "\")");
+
+        // Run the query and save the results to a file
+        console.execute("cpg.call(\"strcmp\").argument(1).reachableByFlows(cpg.method(\".*get_cgi.*\").callIn.argument).toJson #> \"" + outputPath + "\"");
+
+        // Stop the console
+        console.stop();
+
+        // Read the results from the output file
+        String jsonString = "";
+        try {
+            BufferedReader reader = new BufferedReader(new FileReader(outputPath));
+            String line = null;
+            while ((line = reader.readLine()) != null) {
+                jsonString += line;
+            }
+            reader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        // Parse the JSON string into a JSONArray
+        JSONArray jsonArray = new JSONArray(jsonString);
+
+        // Extract the function paths from the JSONArray
+        for (int i = 0; i < jsonArray.length(); i++) {
+            JSONObject jsonObject = jsonArray.getJSONObject(i);
+            String functionPath = jsonObject.getString("function");
+            System.out.println(functionPath);
+        }
+    }
+}
+
