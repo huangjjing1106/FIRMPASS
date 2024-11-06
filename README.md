@@ -7,6 +7,7 @@ the availability of established guidelines and best practices, the implementatio
 in IoT firmware often falls short, leading to vulnerabilities and potential breaches. Because of the lack of
 automated tools, the severity and pervasiveness of broken password management of IoT firmware has been
 less understood.
+
 In this paper, we present FirmPass, a new tool to identify broken password management of Linux-based IoT
 firmware. Particularly, we establish general password management models for Linux-based IoT devices based
 on password management processes and related vulnerabilities. To automatically identify the vulnerabilities,
